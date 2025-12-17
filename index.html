@@ -1,6 +1,8 @@
-fetch(ENDPOINT, {
+fetch("https://script.google.com/macros/s/AKfycbwRfOR_8cbQcrcYuTqDzp2UJs6tDlMuuri9bh0bNLJ6lajzURp1gTFqk7hA3_bP2wbo/exec", {
   method: "POST",
-  headers: { "Content-Type": "application/json" },
+  headers: {
+    "Content-Type": "application/json"
+  },
   body: JSON.stringify({
     accion: "generarCodigo",
     ...payload
@@ -8,13 +10,14 @@ fetch(ENDPOINT, {
 })
 .then(r => r.json())
 .then(res => {
+  console.log("RESPUESTA:", res);
   if(res.ok){
     mostrarResultado(res, payload);
   } else {
-    alert("Error al generar");
+    alert(res.message || "Error al generar");
   }
 })
 .catch(err => {
-  console.error(err);
+  console.error("ERROR FETCH:", err);
   alert("Error de red");
 });
