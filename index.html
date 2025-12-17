@@ -1,0 +1,256 @@
+<!-- VoiceIndex.html -->
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Control por Voz - Generador</title>
+<style>
+  body{ font-family: Arial, Helvetica, sans-serif; margin:12px; background:#f7fbff; color:#223; }
+  .card{ background:white; padding:16px; border-radius:10px; box-shadow:0 6px 20px rgba(10,30,50,0.06); max-width:780px; margin:0 auto; }
+  h2{ margin:0 0 8px 0; color:#1e73be; text-align:center; }
+  label{ display:block; margin-top:8px; font-weight:700; }
+  input[type=text]{ width:100%; padding:10px; border-radius:8px; border:1px solid #e1eefb; text-transform:uppercase; font-size:1rem; }
+  .row{ display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .chip{ padding:10px 12px; border-radius:10px; background:#eaf5ff; cursor:pointer; border:2px solid transparent; font-weight:700; }
+  .chip.active{ border-color:#1976d2; background:#dff0ff; }
+  .btn{ padding:12px 16px; border-radius:10px; background:#1976d2; color:white; border:none; font-weight:900; cursor:pointer; }
+  .btn.secondary{ background:#f0f4f7; color:#123; font-weight:700; border:1px solid #dbeaf7; }
+  .status{ margin-top:10px; padding:8px; background:#f1f9f6; border-radius:8px; min-height:36px; }
+  .qr img{ width:220px; display:block; margin:12px auto; }
+  .whats{ background:#25D366; color:white; padding:10px 14px; border-radius:10px; font-weight:800; border:none; cursor:pointer; width:100%; }
+  .controls{ display:flex; gap:8px; margin-top:12px; }
+  .small{ font-size:0.9rem; color:#446; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h2>Generador por Voz — Control de Visitas</h2>
+
+    <label>Clave casa (escribe igual que usas en la app)</label>
+    <input id="claveCasa" placeholder="Ej. VIOLETAS8">
+
+    <label>Motivo</label>
+    <div class="row" id="motivosRow">
+      <div class="chip" data-m="COMIDA" onclick="pickMotivo(this)">COMIDA</div>
+      <div class="chip" data-m="VIAJE" onclick="pickMotivo(this)">VIAJE</div>
+      <div class="chip" data-m="AUTO" onclick="pickMotivo(this)">CARRO</div>
+      <div class="chip" data-m="MOTO" onclick="pickMotivo(this)">MOTO</div>
+      <div class="chip" data-m="PEATONAL" onclick="pickMotivo(this)">PEATÓN</div>
+    </div>
+
+    <label>Duración</label>
+    <div class="row" id="durRow">
+      <div class="chip" data-d="15m" onclick="pickDur(this)">15 minutos</div>
+      <div class="chip" data-d="30m" onclick="pickDur(this)">30 minutos</div>
+      <div class="chip" data-d="1h" onclick="pickDur(this)">1 hora</div>
+      <div class="chip" data-d="24h" onclick="pickDur(this)">24 horas</div>
+      <div class="chip" data-d="otro" onclick="pickDur(this)">Otro día</div>
+    </div>
+
+    <div style="margin-top:10px;">
+      <button id="btnVoice" class="btn secondary" onclick="toggleRecognition()">🔊 Iniciar voz</button>
+      <button id="btnGen" class="btn" onclick="generarVoz()">GENERAR AHORA</button>
+    </div>
+
+    <div class="status" id="status">Estado: listo</div>
+
+    <div id="resultado" style="display:none; margin-top:12px;">
+      <div id="qrBox" class="qr"></div>
+      <div id="codigoText" style="font-weight:900; text-align:center; font-size:1.1rem;"></div>
+      <div style="margin-top:8px;">
+        <input id="telefonoVoice" type="text" placeholder="Teléfono para WhatsApp (ej. 525512345678)" style="width:100%; padding:8px; border-radius:8px; border:1px solid #e1eefb; margin-bottom:8px;">
+        <button class="whats" onclick="enviarWhatsVoice()">Enviar por WhatsApp</button>
+      </div>
+      <div style="margin-top:8px;" class="small">Expira: <span id="expiraVoice"></span></div>
+    </div>
+  </div>
+
+<script>
+/* client state */
+let motivo = "";
+let duracion = "";
+let subDur = "";
+let recognition = null;
+let listening = false;
+let currentCodigo="", currentQr="", currentExpira="", currentNombre="";
+
+/* pick functions (buttons) */
+function pickMotivo(el){
+  document.querySelectorAll("#motivosRow .chip").forEach(n=>n.classList.remove("active"));
+  el.classList.add("active");
+  motivo = el.dataset.m;
+  setStatus("Motivo: " + motivo);
+}
+function pickDur(el){
+  document.querySelectorAll("#durRow .chip").forEach(n=>n.classList.remove("active"));
+  el.classList.add("active");
+  duracion = el.dataset.d;
+  setStatus("Duración: " + (duracion === "otro" ? "otro" : duracion));
+}
+// Activa voz automáticamente al primer clic o toque
+let autoVoiceStarted = false;
+
+document.body.addEventListener("click", tryAutoStartVoice, { once: true });
+document.body.addEventListener("touchstart", tryAutoStartVoice, { once: true });
+
+function tryAutoStartVoice(){
+  if(!autoVoiceStarted){
+    autoVoiceStarted = true;
+    startVoice();  // tu función que activa la voz
+    setStatus("🎤 Voz activada automáticamente");
+  }
+}
+
+/* status */
+function setStatus(t){
+  document.getElementById("status").textContent = "Estado: " + t;
+  // speak if available
+  try{
+    const u = new SpeechSynthesisUtterance(t);
+    u.lang = "es-MX";
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+  }catch(e){}
+}
+
+/* Voice recognition setup */
+function toggleRecognition(){
+  if(!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)){
+    alert("Tu navegador no soporta reconocimiento de voz (Chrome recomendado).");
+    return;
+  }
+  if(listening){ stopRecognition(); return; }
+  startRecognition();
+}
+
+function startRecognition(){
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRec();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.interimResults = false;
+  recognition.lang = "es-MX";
+  recognition.onresult = (e) => {
+    const text = e.results[e.results.length-1][0].transcript.trim().toLowerCase();
+    handleVoiceText(text);
+  };
+  recognition.onstart = ()=>{ listening = true; document.getElementById("btnVoice").textContent = "🔊 Escuchando... (click para parar)"; setStatus("Escuchando voz"); };
+  recognition.onend = ()=>{ listening = false; document.getElementById("btnVoice").textContent = "🔊 Iniciar voz"; setStatus("Reconocimiento detenido"); };
+  recognition.onerror = (ev)=>{ console.log(ev); setStatus("Error de reconocimiento"); };
+  recognition.start();
+}
+
+function stopRecognition(){
+  if(recognition) recognition.stop();
+  listening = false;
+  document.getElementById("btnVoice").textContent = "🔊 Iniciar voz";
+}
+
+/* parse voice phrases */
+function handleVoiceText(text){
+  setStatus("He oído: " + text);
+
+  // normalizar
+  const t = text.toLowerCase();
+
+  // CLAVE DE CASA
+  if(t.startsWith("clave ") || t.startsWith("casa ")){
+    const after = t.replace(/^(clave|casa)\s*/,'').toUpperCase();
+    document.getElementById("claveCasa").value = after;
+    setStatus("Clave establecida: " + after);
+    // no return — sigue procesando el resto
+  }
+
+  // MOTIVOS
+  if(t.includes("comida"))    pickByName("COMIDA");
+  if(t.includes("viaje"))     pickByName("VIAJE");
+  if(t.includes("carro") || t.includes("auto") || t.includes("coche")) pickByName("AUTO");
+  if(t.includes("moto"))      pickByName("MOTO");
+  if(t.includes("peatón") || t.includes("peaton") || t.includes("caminando")) pickByName("PEATONAL");
+
+  // DURACIONES
+  if(t.match(/15\s*(min|minutos?)/)) pickDurByVal("15m");
+  if(t.match(/30\s*(min|minutos?)/)) pickDurByVal("30m");
+  if(t.includes("1 hora") || t.includes("una hora")) pickDurByVal("1h");
+  if(t.match(/24\s*(horas?)/)) pickDurByVal("24h");
+  if(t.includes("otro día") || t.includes("otro dia")) pickDurByVal("otro");
+
+  // GENERAR
+  if(t.includes("generar")) generarVoz();
+
+  // ENVIAR WHATSAPP
+  if(t.includes("enviar")){
+    const num = (t.match(/\d{7,15}/) || [])[0];
+    if(num){
+      document.getElementById("telefonoVoice").value = num;
+      enviarWhatsVoice();
+    }
+  }
+}
+
+
+function pickByName(name){
+  const node = Array.from(document.querySelectorAll("#motivosRow .chip")).find(n=>n.dataset.m===name);
+  if(node) pickMotivo(node);
+}
+function pickDurByVal(val){
+  const node = Array.from(document.querySelectorAll("#durRow .chip")).find(n=>n.dataset.d===val);
+  if(node) pickDur(node);
+}
+
+/* Generar - llama a Apps Script generarCodigoVoz */
+function generarVoz(){
+  const clave = document.getElementById("claveCasa").value.trim();
+  if(!clave){ setStatus("Ingresa CLAVE CASA antes"); return; }
+  if(!motivo){ setStatus("Selecciona MOTIVO"); return; }
+  if(!duracion){ setStatus("Selecciona DURACIÓN"); return; }
+
+  setStatus("Generando código...");
+  const payload = {
+    claveCasa: clave,
+    motivo: motivo,
+    duracion: duracion,
+    fechaOtroISO: duracion === "otro" ? null : null,
+    extraDur: "",
+    nombre: "",
+    telefono: ""
+  };
+
+  google.script.run.withSuccessHandler(res=>{
+    if(!res || !res.ok){ setStatus((res && res.message) ? res.message : "Error al generar"); return; }
+
+    currentCodigo = res.codigo;
+    currentQr = res.qr;
+    currentExpira = res.expiracion;
+
+    document.getElementById("resultado").style.display = "block";
+    document.getElementById("qrBox").innerHTML = `<img src="${currentQr}" alt="qr">`;
+    document.getElementById("codigoText").textContent = currentCodigo;
+    document.getElementById("expiraVoice").textContent = currentExpira;
+
+    setStatus("Generado: " + currentCodigo + " — Expira: " + currentExpira);
+  }).generarCodigoVoz(payload);
+}
+
+/* Enviar WhatsApp desde Voice UI */
+function enviarWhatsVoice(){
+  if(!currentCodigo){ setStatus("No hay código para enviar"); return; }
+  const tel = document.getElementById("telefonoVoice").value.trim();
+  let msg = `Acceso generado:\nCódigo: ${currentCodigo}\nMotivo: ${motivo}\nExpira: ${currentExpira}\nQR: ${currentQr}`;
+  let url;
+  if(tel){
+    const digits = tel.replace(/\D/g,'');
+    url = "https://wa.me/" + encodeURIComponent(digits) + "?text=" + encodeURIComponent(msg);
+  } else {
+    url = "https://wa.me/?text=" + encodeURIComponent(msg);
+  }
+  // Abrir en nueva pestaña para WhatsApp Web / móvil
+  window.open(url, "_blank");
+}
+
+/* stop speech when leaving */
+window.addEventListener("beforeunload", ()=>{ if(recognition) recognition.stop(); });
+</script>
+</body>
+</html>
