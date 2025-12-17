@@ -1,4 +1,4 @@
-const CACHE = "visitasulq-v1";
+const CACHE = "visitasulq-v3";
 const ASSETS = [
   "./",
   "./index.html",
@@ -16,3 +16,4 @@ self.addEventListener("fetch", e=>{
     caches.match(e.request).then(r=>r || fetch(e.request))
   );
 });
+
