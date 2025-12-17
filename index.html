@@ -29,16 +29,13 @@ input,button{
   margin-top:8px;
   font-size:16px;
   border-radius:10px;
-  box-sizing:border-box;
 }
 button{
   background:#6a1b9a;
   color:#fff;
   border:none;
   font-weight:800;
-  cursor:pointer;
 }
-button:disabled{opacity:.6}
 .msg{text-align:center;margin-top:10px;}
 .qr img{width:220px;display:block;margin:10px auto;}
 </style>
@@ -49,31 +46,26 @@ button:disabled{opacity:.6}
   <h1>🔐 VISITASULQ</h1>
 
   <input id="claveCasa" placeholder="Clave casa">
-  <input id="motivo" placeholder="Motivo (APP, COMIDA, AUTO…)">
-  <input id="duracion" placeholder="Duración (15m / 30m / 1h / 24h)">
+  <input id="motivo" placeholder="Motivo">
+  <input id="duracion" placeholder="15m / 30m / 1h / 24h">
   <input id="nombre" placeholder="Nombre (opcional)">
   <input id="telefono" placeholder="Teléfono (opcional)">
 
-  <button id="btn" onclick="generar()">GENERAR CÓDIGO</button>
+  <button onclick="generar()">GENERAR CÓDIGO</button>
 
   <div id="msg" class="msg"></div>
   <div id="res" class="qr"></div>
 </div>
 
 <script>
-/* ================= CONFIG ================= */
-const ENDPOINT = "https://script.google.com/macros/s/AKfycbzjFIPCimjd1bJFT8yE0OVrhRtpqrr_SUBu-_hL0XcswBpOXV4CCysV0Bj114ryoX7Y/exec";
-const API_KEY  = "VISITASULQ2025";
+const API_URL = "https://script.google.com/macros/s/TU_DEPLOY_ID/exec";
 
-/* ================= ACTION ================= */
 async function generar(){
-  const btn = document.getElementById("btn");
-  const msg = document.getElementById("msg");
-  const res = document.getElementById("res");
+  msg.textContent = "Generando...";
+  res.innerHTML = "";
 
   const payload = {
     accion: "guardar",
-    key: API_KEY,
     claveCasa: claveCasa.value.trim(),
     motivo: motivo.value.trim(),
     duracion: duracion.value.trim(),
@@ -81,17 +73,8 @@ async function generar(){
     telefono: telefono.value.trim()
   };
 
-  if(!payload.claveCasa || !payload.motivo || !payload.duracion){
-    msg.textContent = "⚠️ Falta información obligatoria";
-    return;
-  }
-
-  btn.disabled = true;
-  msg.textContent = "⏳ Generando código...";
-  res.innerHTML = "";
-
   try{
-    const r = await fetch(ENDPOINT,{
+    const r = await fetch(API_URL,{
       method:"POST",
       headers:{ "Content-Type":"application/json" },
       body: JSON.stringify(payload)
@@ -100,30 +83,25 @@ async function generar(){
     const data = await r.json();
 
     if(!data.ok){
-      msg.textContent = "❌ " + (data.message || "Error");
-      btn.disabled = false;
+      msg.textContent = data.message || "Error";
       return;
     }
 
-    msg.textContent = "✅ Código generado";
-
+    msg.textContent = "Código generado";
     res.innerHTML = `
       <img src="${data.qr}">
-      <div style="text-align:center;font-weight:800;font-size:18px">
-        ${data.codigo}
-      </div>
-      <div style="text-align:center;font-size:14px;margin-top:6px">
-        Expira: ${data.expiracion || ""}
-      </div>
+      <div style="text-align:center;font-weight:800">${data.codigo}</div>
+      <div style="text-align:center">Expira: ${data.expiracion}</div>
     `;
-
   }catch(e){
-    msg.textContent = "❌ Error de conexión";
-  }finally{
-    btn.disabled = false;
+    msg.textContent = "Error de conexión";
   }
+}
+
+// registrar service worker
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("service-worker.js");
 }
 </script>
 </body>
 </html>
-
