@@ -65,7 +65,7 @@ async function generar(){
   res.innerHTML = "";
 
   const payload = {
-    accion: "guardar",
+    action: "guardar",
     claveCasa: claveCasa.value.trim(),
     motivo: motivo.value.trim(),
     duracion: duracion.value.trim(),
@@ -105,4 +105,5 @@ if("serviceWorker" in navigator){
 </script>
 </body>
 </html>
+
 
