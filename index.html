@@ -4,95 +4,46 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>VISITASULQ</title>
-
-<style>
-body{
-  font-family: Arial, Helvetica, sans-serif;
-  background:#f3f7fb;
-  margin:0;
-}
-.card{
-  max-width:420px;
-  margin:20px auto;
-  background:#fff;
-  padding:20px;
-  border-radius:14px;
-  box-shadow:0 10px 30px rgba(0,0,0,.1);
-}
-h1{text-align:center;color:#6a1b9a;}
-input,button{
-  width:100%;
-  padding:12px;
-  margin-top:8px;
-  font-size:16px;
-  border-radius:10px;
-}
-button{
-  background:#6a1b9a;
-  color:#fff;
-  border:none;
-  font-weight:800;
-}
-.msg{text-align:center;margin-top:10px;}
-.qr img{width:220px;display:block;margin:10px auto;}
-</style>
 </head>
 
 <body>
-<div class="card">
-  <h1>🔐 VISITASULQ</h1>
+<h2>VISITASULQ</h2>
 
-  <input id="claveCasa" placeholder="Clave casa">
-  <input id="motivo" placeholder="Motivo">
-  <input id="duracion" placeholder="15m / 30m / 1h / 24h">
-  <input id="nombre" placeholder="Nombre (opcional)">
-  <input id="telefono" placeholder="Teléfono (opcional)">
+<input id="claveCasa" placeholder="Clave casa"><br>
+<input id="motivo" placeholder="Motivo"><br>
+<input id="duracion" placeholder="15m / 30m / 1h / 24h"><br>
+<input id="nombre" placeholder="Nombre"><br>
+<input id="telefono" placeholder="Teléfono"><br><br>
 
-  <button onclick="generar()">GENERAR CÓDIGO</button>
+<button onclick="generar()">GENERAR</button>
 
-  <div id="msg" class="msg"></div>
-  <div id="res" class="qr"></div>
-</div>
+<pre id="out"></pre>
 
 <script>
-const API_URL =
-"https://script.googleusercontent.com/macros/echo?lib=AKfycbzUWow7v0hJ5SnyL0z64oNtDIolyuGMN4jCwwTaU1KR5gLUMwelVlZ5_3YkhNe3tzYz";
+const API_URL = "https://script.google.com/macros/s/AKfycbzkuV1BYevNJ7wPgSG0xNWeFRCpVLOnSOB-IbCG72tGlKmb6BNfn54pjml4wbrvFCru/exec";
 
 async function generar(){
-  msg.textContent = "Generando...";
-  res.innerHTML = "";
+  out.textContent = "Generando...";
 
   try{
-    const payload = JSON.stringify({
-      action:"guardar",
-      claveCasa: claveCasa.value.trim(),
-      motivo: motivo.value.trim(),
-      duracion: duracion.value.trim(),
-      nombre: nombre.value.trim(),
-      telefono: telefono.value.trim()
+    const form = new URLSearchParams();
+    form.append("action", "guardar");
+    form.append("claveCasa", claveCasa.value);
+    form.append("motivo", motivo.value);
+    form.append("duracion", duracion.value);
+    form.append("nombre", nombre.value);
+    form.append("telefono", telefono.value);
+
+    const r = await fetch(API_URL, {
+      method: "POST",
+      body: form
     });
 
-    const r = await fetch(API_URL,{
-      method:"POST",
-      body: payload   // 👈 SIN headers
-    });
-
-    const data = JSON.parse(await r.text());
-
-    if(!data.ok){
-      msg.textContent = data.message || "Error";
-      return;
-    }
-
-    msg.textContent = "Código generado";
-    res.innerHTML = `
-      <img src="${data.qr}">
-      <div style="text-align:center;font-weight:800">${data.codigo}</div>
-      <div style="text-align:center">Expira: ${data.expiracion}</div>
-    `;
+    const txt = await r.text();
+    out.textContent = txt;
   }catch(e){
-    msg.textContent = "❌ Error de conexión";
-    console.error("ERROR FETCH:", e);
+    out.textContent = "ERROR: " + e.message;
+    console.error(e);
   }
 }
 </script>
