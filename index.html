@@ -11,29 +11,30 @@
 <style>
 html,body{
   margin:0;
-  padding:0;
-  height:100%;
-  background:#000;
-}
-iframe{
   width:100%;
   height:100%;
+}
+iframe{
   border:none;
+  width:100%;
+  height:100%;
 }
 </style>
 </head>
 
 <body>
+
 <iframe
-  src="https://script.googleusercontent.com/macros/echo?lib=AKfycbx_JhmSKEl9QczSnKvmgl8xBv-CblXpONlCHwf69ayClabJEgNiv0CuHNCM4IEAtKzA&vista=vozg"
-  allow="microphone; camera; clipboard-write"
-  referrerpolicy="no-referrer"
+  src="https://script.google.com/macros/s/AKfycbx_JhmSKEl9QczSnKvmgl8xBv-CblXpONlCHwf69ayClabJEgNiv0CuHNCM4IEAtKzA/exec?vista=vozg"
+  allow="microphone; clipboard-write"
 ></iframe>
+
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("service-worker.js");
+}
+</script>
+
 </body>
 </html>
-
-
-
-
-
 
